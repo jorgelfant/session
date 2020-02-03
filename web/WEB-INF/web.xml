@@ -4,6 +4,15 @@
          xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
          version="4.0">
 
+    <!-- ceci permet de reduire le temps d'inactivité de lutilisateur suite à laquelle la session est détruite par le
+         serveur
+
+    <session-config>
+        <session-timeout>1</session-timeout>
+    </session-config>
+
+    -->
+
     <servlet>
         <servlet-name>Connexion</servlet-name>
         <servlet-class>com.exemple.servlets.Connexion</servlet-class>
@@ -12,5 +21,17 @@
     <servlet-mapping>
         <servlet-name>Connexion</servlet-name>
         <url-pattern>/connexion</url-pattern>
+    </servlet-mapping>
+
+    <!--/////////////////////////////////////////////////////////////////////////////////////////////////////////////-->
+
+    <servlet>
+        <servlet-name>Deconnexion</servlet-name>
+        <servlet-class>com.exemple.servlets.Deconnexion</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>Deconnexion</servlet-name>
+        <url-pattern>/deconnexion</url-pattern>
     </servlet-mapping>
 </web-app>

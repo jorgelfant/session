@@ -261,7 +261,200 @@ Dans cette courte modification (un if fait dans le jsp connexion.jsp) , aux lign
         * l'accès à la propriété email du bean sessionUtilisateur via l'expression
           ${sessionScope.sessionUtilisateur.email}.
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+        Rappelez-vous : nous pourrions très bien accéder à l'objet en écrivant simplement ${sessionUtilisateur}, et
+        l'expression EL chercherait alors d'elle-même un objet nommé sessionUtilisateur dans chaque portée. Mais je
+        vous ai déjà dit que la bonne pratique était de réserver cette écriture à l'accès des objets de la portée page,
+        et de toujours accéder aux objets des autres portées en précisant l'objet implicite correspondant
+        (requestScope, sessionScope ou applicationScope).
+
+        Accédez maintenant à la page http://localhost:8080/pro/connexion, et entrez des données valides.
+        Voici à la figure suivante le résultat attendu après succès de la connexion.
+
+        Succes de la connexion
+
+        Vous etes connecté avec l'adresse : lsdfhsdhjs@yahoo.com
+
+        ****************************************************************************************************************
+
+        Ensuite, réaffichez la page http://localhost:8080/pro/connexion, mais attention pas en appuyant sur F5 ni en
+        actualisant la page : cela renverrait les données de votre formulaire ! Non, simplement entrez à nouveau l'URL
+        dans le même onglet de votre navigateur, ou bien ouvrez un nouvel onglet. Voici à la figure suivante le résultat
+        attendu.
+
+        Vous etes connecté avec l'adresse : shfsjksdhjkf@yahoo.com
+        ****************************************************************************************************************
+
+        Vous pouvez alors constater que la mémorisation de l'utilisateur a fonctionné ! Lorsqu'il a reçu la deuxième
+        requête d'affichage du formulaire, le serveur vous a reconnus : il sait que vous êtes le client qui a effectué
+        la requête de connexion auparavant, et a conservé vos informations dans la session. En outre, vous voyez également
+        que les informations qui avaient été saisies dans les champs du formulaire lors de la première requête sont bien
+        évidemment perdues : elles n'avaient été gérées que via l'objet request, et ont donc été détruites après envoi
+        de la première réponse au client.
+
+        ****************************************************************************************************************
+
+        Vous devez maintenant mieux comprendre cette histoire de portée des objets : l'objet qui a été enregistré en
+        session reste accessible sur le serveur au fil des requêtes d'un même client, alors que l'objet qui a été
+        enregistré dans la requête n'est accessible que lors d'une requête donnée, et disparaît du serveur dès que la
+        réponse est envoyée au client.
+
+        Pour finir, testons l'effacement de l'objet de la session lorsqu'une erreur de validation survient. Remplissez
+        le formulaire avec des données invalides, et regardez à la figure suivante le résultat renvoyé.
+
+        Le contenu du corps de la balise <c:if> n'est ici pas affiché. Cela signifie que le test de présence de
+        l'objet en session a retourné false, et donc que notre servlet a bien passé l'objet utilisateur à null dans
+        la session. En conclusion, jusqu'à présent, tout roule ! ;)
+
+
+//----------------------------------------------------------------------------------------------------------------------
+//                                      Test de la destruction de session
+//----------------------------------------------------------------------------------------------------------------------
+
+Je vous l'ai rappelé en début de chapitre, la session peut être détruite dans plusieurs circonstances :
+
+       * l'utilisateur ferme son navigateur ;
+
+       * la session expire après une période d'inactivité de l'utilisateur ;
+
+       * l'utilisateur se déconnecte.
+
+**********************************
+L'utilisateur ferme son navigateur
+**********************************
+
+Ce paragraphe va être très court. Faites le test vous-mêmes :
+
+    1) ouvrez un navigateur et affichez le formulaire de connexion ;
+
+    2) entrez des données valides et connectez-vous ;
+
+    3) fermez votre navigateur ;
+
+    4) rouvrez-le, et rendez-vous à nouveau sur le formulaire de connexion.
+
+Vous constaterez alors que le serveur ne vous a pas reconnus : les informations vous concernant n'existent plus, et
+le serveur considère que vous êtes un nouveau client.
+
+Quand on parle de fermer le navigateur on parle de fermer tout le navigateur et pas seulement une de tabs du navigateur
+
+*****************************************************************
+La session expire après une période d'inactivité de l'utilisateur
+*****************************************************************
+
+Par défaut avec Tomcat, la durée maximum de validité imposée au-delà de laquelle la session est automatiquement
+détruite par le serveur est de 30 minutes. Vous vous doutez bien que nous n'allons pas poireauter une demi-heure
+devant notre écran pour vérifier si cela fonctionne bien : vous avez la possibilité via le fichier web.xml de votre
+application de personnaliser cette durée. Ouvrez-le dans Eclipse et modifiez-le comme suit :
+
+                                <?xml version="1.0" encoding="UTF-8"?>
+                                <web-app>
+                                   	<session-config>
+                                   		<session-timeout>1</session-timeout>
+                                   	</session-config>
+
+                                   	<servlet>
+                                   		<servlet-name>Inscription</servlet-name>
+                                   		<servlet-class>com.sdzee.servlets.Inscription</servlet-class>
+                                   	</servlet>
+                                   	<servlet>
+                                   		<servlet-name>Connexion</servlet-name>
+                                   		<servlet-class>com.sdzee.servlets.Connexion</servlet-class>
+                                   	</servlet>
+
+                                   	<servlet-mapping>
+                                   		<servlet-name>Inscription</servlet-name>
+                                   		<url-pattern>/inscription</url-pattern>
+                                   	</servlet-mapping>
+                                   	<servlet-mapping>
+                                   		<servlet-name>Connexion</servlet-name>
+                                   		<url-pattern>/connexion</url-pattern>
+                                   	</servlet-mapping>
+                                </web-app>
+
+Le champ <session-timeout> permet de définir en minutes le temps d'inactivité de l'utilisateur après lequel sa session
+est détruite. Je l'ai ici abaissé à une minute, uniquement pour effectuer notre vérification. Redémarrez Tomcat afin que
+la modification apportée au fichier soit prise en compte, puis :
+
+    1) ouvrez un navigateur et affichez le formulaire de connexion ;
+
+    2) entrez des données valides et connectez-vous ;
+
+    3) attendez quelques minutes, puis affichez à nouveau le formulaire, dans la même page ou dans un nouvel onglet.
+
+Vous constaterez alors que le serveur vous a oubliés : les informations vous concernant n'existent plus, et le serveur
+considère que vous êtes un nouveau client.
+
+Une fois ce test effectué, éditez à nouveau votre fichier web.xml et supprimez la section fraîchement ajoutée :
+dans la suite de nos exemples, nous n'allons pas avoir besoin de cette limitation.
+
+*********************************
+L'utilisateur se déconnecte
+*********************************
+
+Cette dernière vérification va nécessiter un peu de développement. En effet, nous avons créé une servlet de connexion,
+mais nous n'avons pas encore mis en place de <<servlet de déconnexion>>. Par conséquent, il est pour le moment impossible
+pour le client de se déconnecter volontairement du site, il est obligé de fermer son navigateur ou d'attendre que la
+durée d'inactivité soit dépassée.
+
+Comment détruire manuellement une session ?
+******************************************
+
+Il faut regarder dans la documentation de l'objet HttpSession pour répondre à cette question : nous y trouvons une
+méthode invalidate(), qui supprime une session et les objets qu'elle contient, et envoie une exception si jamais elle
+est appliquée sur une session déjà détruite.
+
+Créons sans plus attendre notre nouvelle servlet nommée Deconnexion :
+
+       public class Deconnexion extends HttpServlet {
+           public static final String URL_REDIRECTION = "http://www.siteduzero.com";
+
+           public void doGet( HttpServletRequest request, HttpServletResponse response ) throws ServletException, IOException {
+               /* Récupération et destruction de la session en cours */
+               HttpSession session = request.getSession();
+               session.invalidate();
+
+               /* Redirection vers le Site du Zéro ! */
+               response.sendRedirect( URL_REDIRECTION );
+           }
+       }
+
+Vous remarquez ici deux nouveautés :
+
+l'appel à la méthode invalidate() de l'objet HttpSession ;
+
+la redirection vers la page de connexion via la méthode sendRedirect() de l'objet HttpServletResponse, en lieu et place
+du forwarding que nous utilisions auparavant.
+
+************************************************************************************************************************
+                        Quelle est la différence entre la redirection et le forwarding ?
+************************************************************************************************************************
+
+En réalité, vous le savez déjà ! Eh oui, vous ne l'avez pas encore appliqué depuis une servlet, mais je vous
+ai déjà expliqué le principe lorsque nous avons découvert la balise <c:redirect>, dans cette partie du chapitre
+portant sur la JSTL Core.
+
+Pour rappel donc, une redirection HTTP implique l'envoi d'une réponse au client, alors que le forwarding
+s'effectue sur le serveur et le client n'en est pas tenu informé. Cela implique notamment que, via un
+forwarding, il est uniquement possible de cibler des pages internes à l'application, alors que via la
+redirection il est possible d'atteindre n'importe quelle URL publique ! En l'occurrence, dans notre servlet
+j'ai fait en sorte que lorsque vous vous déconnectez, vous êtes redirigés vers votre site web préféré.
+
+Fin du rappel, nous allons de toute manière y revenir dans le prochain paragraphe. Pour le moment,
+concentrons-nous sur la destruction de notre session !
+
+Déclarons notre servlet dans le fichier web.xml de l'application :
+
+                        <servlet>
+                        	<servlet-name>Deconnexion</servlet-name>
+                        	<servlet-class>com.sdzee.servlets.Deconnexion</servlet-class>
+                        </servlet>
+
+                         <servlet-mapping>
+                         	<servlet-name>Deconnexion</servlet-name>
+                         	<url-pattern>/deconnexion</url-pattern>
+                         </servlet-mapping>
 --%>
 
 

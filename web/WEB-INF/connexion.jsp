@@ -44,16 +44,7 @@
             <p class="succes">Vous êtes connecté(e) avec l'adresse : ${sessionScope.sessionUtilisateur.email}</p>
         </c:if>
 
-        <%--
-        Rappelez-vous : nous pourrions très bien accéder à l'objet en écrivant simplement ${sessionUtilisateur}, et
-        l'expression EL chercherait alors d'elle-même un objet nommé sessionUtilisateur dans chaque portée. Mais je
-        vous ai déjà dit que la bonne pratique était de réserver cette écriture à l'accès des objets de la portée page,
-        et de toujours accéder aux objets des autres portées en précisant l'objet implicite correspondant
-        (requestScope, sessionScope ou applicationScope).
 
-        Accédez maintenant à la page http://localhost:8080/pro/connexion, et entrez des données valides.
-        Voici à la figure suivante le résultat attendu après succès de la connexion.
-        --%>
 
     </fieldset>
 </form>
