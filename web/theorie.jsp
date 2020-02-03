@@ -535,11 +535,37 @@ forwarding dans la servlet de déconnexion (voir la figure suivante).
     2) la servlet de déconnexion envoie une demande de redirection au navigateur vers la servlet de connexion,
        via un sendRedirect( "/pro/connexion" ) ;
 
-    3) le navigateur de l'utilisateur exécute alors la redirection et effectue alors une nouvelle requête vers la servlet de connexion ;
+    3) le navigateur de l'utilisateur exécute alors la redirection et effectue alors une nouvelle requête vers la servlet
+       de connexion ;
 
     4) la servlet de connexion transfère la requête vers la JSP du formulaire de connexion via un forwarding ;
 
     5) la JSP renvoie le formulaire à l'utilisateur.
+
+Cette fois, vous voyez bien que la réponse envoyée par la JSP finale correspond à la seconde requête effectuée par le
+navigateur, à savoir celle vers la servlet de connexion. Ainsi, l'URL affichée dans la barre d'adresses du navigateur
+est bien celle de la page de connexion, et l'utilisateur n'est pas dérouté.
+
+Certes, dans le cas de notre page de déconnexion et de notre forwarding, le fait que le client ne soit pas au courant
+du cheminement de sa requête au sein du serveur n'a rien de troublant, seule l'URL n'est pas en accord avec l'affichage
+final. En effet, si le client appuie sur F5 et actualise la page, cela va appeler à nouveau la servlet de déconnexion,
+qui va supprimer sa session si elle existe, puis à nouveau faire un forwarding, puis finir par afficher le formulaire
+de connexion à nouveau.
+
+Seulement imaginez maintenant que nous n'avons plus affaire à un système de déconnexion, mais à un système de gestion
+de compte en banque, dans lequel la servlet de déconnexion deviendrait une servlet de transfert d'argent, et la servlet
+de connexion deviendrait une servlet d'affichage du solde du compte. Si nous gardons ce système de forwarding, après que
+le client effectue un transfert d'argent, il est redirigé de manière transparente vers l'affichage du solde de son compte.
+Et là, ça devient problématique : si le client ne fait pas attention, et qu'il actualise la page en pensant simplement
+actualiser l'affichage de son solde, il va en réalité à nouveau effectuer un transfert d'argent, puisque l'URL de son
+navigateur est restée figée sur la première servlet contactée...
+
+Vous comprenez mieux maintenant pourquoi je vous avais conseillé d'utiliser <c:redirect> plutôt que <jsp:forward> dans
+le chapitre sur la JSTL Core, et pourquoi dans notre exemple j'ai mis en place une redirection HTTP via sendRedirect()
+plutôt qu'un forwarding ? :D
+
+Avant de poursuivre, éditez le code de votre servlet de déconnexion et remettez en place la redirection HTTP vers votre
+site préféré, comme je vous l'ai montré avant de faire cet aparté sur le forwarding.
 --%>
 
 
