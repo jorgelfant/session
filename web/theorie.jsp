@@ -455,6 +455,80 @@ Déclarons notre servlet dans le fichier web.xml de l'application :
                          	<servlet-name>Deconnexion</servlet-name>
                          	<url-pattern>/deconnexion</url-pattern>
                          </servlet-mapping>
+
+------------------------------------------------------------------------------------------------------------------------
+
+Redémarrez Tomcat pour que la modification du fichier web.xml soit prise en compte, et testez alors comme suit :
+
+       1) ouvrez un navigateur et affichez le formulaire de connexion ;
+
+       2) entrez des données valides et connectez-vous ;
+
+       3) entrez l'URL http://localhost:8080/pro/deconnexion ;
+
+       4) affichez à nouveau le formulaire de connexion.
+
+Vous constaterez alors que lors de votre retour le serveur ne vous reconnaît pas : la session a bien été détruite.
+
+************************************************************************************************************************
+                                Différence entre forwarding et redirection
+************************************************************************************************************************
+
+Avant de continuer, puisque nous y sommes, testons cette histoire de forwarding et de redirection. Modifiez le code
+de la servlet comme suit :
+
+       public class Deconnexion extends HttpServlet {
+
+           public static final String VUE = "/connexion";
+
+           public void doGet( HttpServletRequest request, HttpServletResponse response ) throws ServletException, IOException {
+               /* Récupération et destruction de la session en cours */
+               HttpSession session = request.getSession();
+               session.invalidate();
+
+               /* Affichage de la page de connexion */
+               this.getServletContext().getRequestDispatcher( VUE ).forward( request, response );
+           }
+       }
+
+             2) CAS DE FORWARDING  REDIRECTION VER PAGES INTERNES A L'APPLICATION Affichage de la page de connexion
+             côté serveur, le client ne sait pas qu'il est redirigé
+             l'url ne change pas et meme si on est envoyé à la page jsp connexion, l'url continue d'afficher deconnexion
+             http://localhost:8080/session_war_exploded/deconnexion */
+
+             Nous avons ici simplement mis en place un forwarding vers la servlet de connexion : une fois déconnectés,
+             vous allez visualiser le formulaire de connexion dans votre navigateur. Oui, mais voyez plutôt ce qu'indique
+             la figure suivante !
+
+             http://localhost:8080/session_war_exploded/deconnexion
+
+------------------------------------------------------------------------------------------------------------------------
+
+Vous comprenez ce qu'il s'est passé ? Comme je vous l'ai expliqué dans plusieurs chapitres, le client n'est pas au
+courant qu'un forwarding a été réalisé côté serveur. Pour lui, la page jointe est /pro/deconnexion, et c'est bien elle
+qui lui a renvoyé une réponse HTTP. Par conséquent, l'URL dans la barre d'adresses de votre navigateur n'a pas changé !
+Pourtant, côté serveur, a été effectué un petit enchaînement de forwardings, comme on peut le voir à la figure suivante.
+
+mon servlet de connexion m'envoie au servlet connexion qui lui a son tour m'envoie dans la page connexion.jsp
+
+      1) l'utilisateur accède à la page de déconnexion depuis son navigateur ;
+
+      2) la servlet de déconnexion transfère la requête vers la servlet de connexion via un forwarding ;
+
+      3) la servlet de connexion transfère la requête vers la JSP du formulaire de connexion via un forwarding ;
+
+      4) la JSP renvoie le formulaire à l'utilisateur.
+
+------------------------------------------------------------------------------------------------------------------------
+
+Ce que vous devez comprendre avec ce schéma, c'est que du point de vue du client, pour qui le serveur est comme une
+grosse boîte noire, la réponse envoyée par la JSP finale correspond à la requête vers la servlet de déconnexion qu'il
+a effectuée. C'est donc pour cette raison que l'utilisateur croit que la réponse est issue de la servlet de déconnexion,
+et que son navigateur lui affiche toujours l'URL de la page de déconnexion dans la barre d'adresses : il ne voit pas ce
+qui se passe côté serveur, et ne sait pas qu'en réalité sa requête a été baladée de servlet en servlet.
+
+Voyons maintenant ce qui se passerait si nous utilisions une redirection vers la page de connexion à la place du
+forwarding dans la servlet de déconnexion (voir la figure suivante).
 --%>
 
 
