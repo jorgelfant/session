@@ -566,6 +566,11 @@ plutôt qu'un forwarding ? :D
 
 Avant de poursuivre, éditez le code de votre servlet de déconnexion et remettez en place la redirection HTTP vers votre
 site préféré, comme je vous l'ai montré avant de faire cet aparté sur le forwarding.
+
+************************************************************************************************************************
+                                            Derrière les rideaux
+************************************************************************************************************************
+
 --%>
 
 
