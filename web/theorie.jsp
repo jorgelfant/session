@@ -529,6 +529,17 @@ qui se passe côté serveur, et ne sait pas qu'en réalité sa requête a été 
 
 Voyons maintenant ce qui se passerait si nous utilisions une redirection vers la page de connexion à la place du
 forwarding dans la servlet de déconnexion (voir la figure suivante).
+
+    1) l'utilisateur accède à la page de déconnexion depuis son navigateur ;
+
+    2) la servlet de déconnexion envoie une demande de redirection au navigateur vers la servlet de connexion,
+       via un sendRedirect( "/pro/connexion" ) ;
+
+    3) le navigateur de l'utilisateur exécute alors la redirection et effectue alors une nouvelle requête vers la servlet de connexion ;
+
+    4) la servlet de connexion transfère la requête vers la JSP du formulaire de connexion via un forwarding ;
+
+    5) la JSP renvoie le formulaire à l'utilisateur.
 --%>
 
 
