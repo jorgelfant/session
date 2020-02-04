@@ -67,7 +67,6 @@ public final class ConnexionForm {
         }
     }
 
-
     // Valide le mot de passe saisi.
     private void validationMotDePasse(String motDePasse) throws Exception {
         if (motDePasse != null) {

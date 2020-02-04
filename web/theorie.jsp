@@ -604,21 +604,448 @@ voyez simplement un cookie comme un simple marqueur, un petit fichier texte qui 
 En l'occurrence, le cookie mis en place lors de la gestion d'une session utilisateur par le serveur se nomme JSESSIONID,
 et contient l'identifiant de session unique en tant que valeur.
 
-
-
-
 Pour résumer, le serveur va placer directement chez le client son identifiant de session. Donc, chaque fois qu'il crée
 une session pour un nouveau client, le serveur va envoyer son identifiant au navigateur de celui-ci.
 
+************************************************************************************************************************
+                                       Comment est géré ce cookie ?
+************************************************************************************************************************
+
+Je vous l'ai déjà dit, nous allons y revenir plus en détail dans un prochain chapitre. Toutefois, nous pouvons déjà
+esquisser brièvement ce qui se passe dans les coulisses. <<La spécification du cookie HTTP>>, qui constitue un contrat
+auquel tout navigateur web décent ainsi que tout serveur web doit adhérer, est très claire : elle demande au navigateur
+de renvoyer ce cookie dans les requêtes suivantes tant que le cookie reste valide.
+
+Voilà donc la clé du système : le conteneur de servlets va analyser chaque requête HTTP entrante, y chercher le cookie
+ayant pour nom JSESSIONID et utiliser sa valeur, c'est-à-dire l'identifiant de session, afin de récupérer l'objet
+HttpSession associé dans la mémoire du serveur.
+
+************************************************************************************************************************
+                        Quand les données ainsi stockées deviennent-elles obsolètes ?
+************************************************************************************************************************
+
+Côté serveur, vous le savez déjà : l'objet HttpSesssion existera tant que sa durée de vie n'aura pas dépassé le temps
+qu'il est possible de spécifier dans la section <session-timeout> du fichier web.xml, qui est par défaut de trente
+minutes. Donc si le client n'utilise plus l'application pendant plus de trente minutes, le conteneur de servlets détruira
+sa session. Aucune des requêtes suivantes, y compris celles contenant le cookie, n'aura alors accès à la précédente
+session : le conteneur de servlets en créera une nouvelle.
+
+Côté client, le cookie de session a une durée de vie également, qui par défaut est limitée au temps durant lequel le
+navigateur reste ouvert. Lorsque le client ferme son navigateur, le cookie est donc détruit côté client. Si le client
+ouvre à nouveau son navigateur, le cookie associé à la précédente session ne sera alors plus envoyé. Nous revenons alors
+au principe général que je vous ai énoncé quelques lignes plus tôt : un appel à request.getSession() retournerait alors
+un nouvel objet HttpSession, et mettrait ainsi en place un nouveau cookie contenant un nouvel identifiant de session.
+
+Plutôt que de vous ressortir les schémas précédents en modifiant et complétant les légendes et explications pour y
+faire apparaître la gestion du cookie, je vais vous faire pratiquer ! Nous allons directement tester notre petit système
+de connexion, et analyser ce qui se trame dans les entrailles des échanges HTTP...
+
+************************************************************************************************************************
+                          La pratique : scrutons nos requêtes et réponses
+************************************************************************************************************************
+Pour commencer, nous allons reprendre notre exemple de connexion et analyser les échanges qu'il engendre :
+
+    1) redémarrez votre serveur Tomcat ;
+
+    2) fermez votre navigateur, puis ouvrez-le à nouveau ;
+
+    3) supprimez toutes les données qui y sont automatiquement enregistrées. Depuis Firefox ou Chrome, il suffit
+       d'appuyer simultanément sur Ctrl + Maj + Suppr pour qu'un menu de suppression du cache, des cookies et autres
+       données diverses apparaisse (voir les figures suivantes).
+
+    4) ouvrez un nouvel onglet vide, et appuyez alors sur F12 pour lancer Firebug depuis Firefox, ou l'outil équivalent
+       intégré depuis Chrome ;
+
+    5) cliquez alors sur l'onglet Réseau de Firebug, ou sur l'onglet Network de l'outil intégré à Chrome.
+
+************************************************************************************************************************
+                                         Le tout premier acces
+************************************************************************************************************************
+
+Rendez-vous ensuite sur la page http://localhost:8080/pro/connexion. Les données enregistrées côté client ont été
+effacées, et le serveur a été redémarré, il s'agit donc ici de notre toute première visite sur une page du site.
+En outre, nous savons que la servlet Connexion associée à cette page contient un appel à request.getSession(). Observez
+alors ce qui s'affiche dans votre outil (voir les figures suivantes).
 
 
+En clickant sur network (sur firefox par exemple)  all    header
+Ici on voit que quand depuis notre navigateur on met en url connexion, alors une request est faite au serveur,
+celui ci voit que la requete ne possede pas de cookie, alors une nouvelle session est créee et un cookie avec
+un JSESSIONIN=45sd4df associée à ce nouvel objet session créé. puis cette cokie est transmis au client à traver une
+reponse HTTP  ce cookie sera enregistré dans le navigateur du client, jusqu'à ce que celui ci la detruisse en fermant
+son navigateur côté client (ou en se deconnectant)  ou que du côté serveur le session-timeout depasse les 30 minutes.
+
+Resultat:
+********
+le navigateur possede mnt un  Set-Cookie: JSESSIONID=3F29E8F43B00DEEEE1F…ession_war_exploded; HttpOnly
+envoyé par la réponse HTTP
+
+             le Cookie est dans la response car le navigateur n'avait pas de cookie, c'est 1ere fois qu'on démrre
+             -----------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------
+                              Response Headers (258 B)
+                              ***********************
+
+                              Connection: keep-alive
+                              Content-Length: 1018
+                              Content-Type: text/html;charset=UTF-8
+                              Date: Tue, 04 Feb 2020 12:21:16 GMT
+                              Keep-Alive: timeout=20
+                              Set-Cookie: JSESSIONID=3F29E8F43B00DEEEE1F…ession_war_exploded; HttpOnly
+
+                              Request Headers (365 B)
+                              **********************
+
+                              Accept: text/html,application/xhtml+xm…ml;q=0.9,image/webp,*/*;q=0.8
+                              Accept-Encoding: gzip, deflate
+                              Accept-Language: en-US,en;q=0.5
+                              Connection: keep-alive
+                              Host: localhost:8080
+                              Upgrade-Insecure-Requests: 1
+                              User-Agent: Mozilla/5.0 (Windows NT 10.0; …) Gecko/20100101 Firefox/72.0
+
+Vous pouvez ici remarquer plusieurs choses importantes :
+
+     * la réponse renvoyée par le serveur contient une instruction Set-Cookie, destinée à mettre en place le cookie
+       de session dans le navigateur du client ;
+
+     * le nom du cookie est bien JSESSIONID, et sa valeur est bien un long identifiant unique ;
+
+     * bien que je sois le seul réel client qui accède au site, le serveur considère mes visites depuis Firefox et
+       Chrome comme étant issues de deux clients distincts, et génère donc deux sessions différentes. Vérifiez les
+       identifiants, ils sont bien différents d'un écran à l'autre.
+
+Dorénavant, je vous afficherai uniquement des captures d'écran réalisées avec l'outil de Chrome, pour ne pas surcharger
+d'images ce chapitre. Si vous utilisez Firebug, reportez-vous à la capture précédente si jamais vous ne vous souvenez
+plus où regarder les informations relatives aux échanges HTTP.
+
+************************************************************************************************************************
+                                       L'accès suivant, avec la même session
+************************************************************************************************************************
+Dans la foulée, rendez-vous à nouveau sur cette même page de connexion (actualisez la page via un appui sur F5 par exemple).
+Observez alors la figure suivante
+
+             le Cookie est maintenant dans la requête car le navigateur l'a enregistré
+             pas besoin donc de le renvoyer en response, on se ser du meme cookie pour
+             l'identification de la session
+             -------------------------------------------------------------------------
+
+                              Response Headers (163 B)
+                              ***********************
+                              Connection: keep-alive
+                              Content-Length: 1018
+                              Content-Type: text/html;charset=UTF-8
+                              Date: Tue, 04 Feb 2020 12:49:06 GMT
+                              Keep-Alive: timeout=20
 
 
+                              Request Headers (444 B)
+                              ***********************
+                              Accept: text/html,application/xhtml+xm…ml;q=0.9,image/webp,*/*;q=0.8
+                              Accept-Encoding : gzip, deflate
+                              Accept-Language : en-US,en;q=0.5
+                              Cache-Control: max-age=0
+                              Connection: keep-alive
+                              Cookie: JSESSIONID=3F29E8F43B00DEEEE1FE631D32AD5A45
+                              Host: localhost:8080
+                              Upgrade-Insecure-Requests: 1
+                              User-Agent: Mozilla/5.0 (Windows NT 10.0; …) Gecko/20100101 Firefox/72.0
+
+               ---------------------------------------------------------------------------------
+
+Là encore, vous pouvez remarquer plusieurs choses importantes :
+---------------------------------------------------------------
+
+         * un cookie est, cette fois, envoyé par le navigateur au serveur, dans le paramètre Cookie de l'en-tête de
+           la requête HTTP effectuée ;
+
+         * sa valeur correspond à celle contenue dans le cookie envoyé par le serveur dans la réponse précédente ;
+
+         * après réception de la première réponse contenant l'instruction Set-Cookie, le navigateur avait donc bien
+           sauvegardé le cookie généré par le serveur, et le renvoie automatiquement lors des requêtes suivantes ;
+
+         * dans la deuxième réponse du serveur, il n'y a cette fois plus d'instruction Set-Cookie : le serveur ayant
+           reçu un cookie nommé JSESSIONID depuis le client, et ayant trouvé dans sa mémoire une session correspondant
+           à l'identifiant contenu dans la valeur du cookie, il sait que le client a déjà enregistré la session en cours
+           et qu'il n'est pas nécessaire de demander à nouveau la mise en place d'un cookie !
 
 
+************************************************************************************************************************
+                                     L'accès suivant, après une déconnexion !
+************************************************************************************************************************
+
+Rendez-vous maintenant sur la page http://localhost:8080/pro/deconnexion, puis retournez ensuite sur
+ http://localhost:8080/pro/connexion. Observez la figure suivante.
+
+                        Cookie dans la requête et la réponse
+                        ------------------------------------
+
+                             Response Headers (258 B)
+                             ************************
+
+                             Connection	: keep-alive
+                             Content-Length	: 1018
+                             Content-Type : text/html;charset=UTF-8
+                             Date : Tue, 04 Feb 2020 13:08:58 GMT
+                             Keep-Alive : timeout=20
+                             Set-Cookie	: JSESSIONID=5C5D416A85C1CA0DC93…ession_war_exploded; HttpOnly
+
+                             Request Headers (418 B)
+                             ***********************
+
+                             Accept	: text/html,application/xhtml+xm…ml;q=0.9,image/webp,*/*;q=0.8
+                             Accept-Encoding : gzip, deflate
+                             Accept-Language : en-US,en;q=0.5
+                             Connection	: keep-alive
+                             Cookie	: JSESSIONID=3F29E8F43B00DEEEE1FE631D32AD5A45
+                             Host : localhost:8080
+                             Upgrade-Insecure-Requests : 1
+                             User-Agent : Mozilla/5.0 (Windows NT 10.0; …) Gecko/20100101 Firefox/72.0
 
 
+Cette fois encore, vous pouvez remarquer plusieurs choses importantes :
+*********************************************************************
 
+en fait je vais sur deconnexion, mon navigateur a un identificant , mais dans cette page jsp, ma session est detruite
+session.invalidate() et puis je suis redirigé à connexion  jsp  avec request.sendRedirect("/session_war_exploded/connexion")
+au moment d'arriver a connexion je n'ai plus de cookie avec identifiant de session, une nouvelle session est donc créée
+et renvoyée en response pour que le navigateur l'enregistre
+
+    * deux cookies nommés JSESSIONID interviennent : un dans la requête et un dans la réponse ;
+
+    * la valeur de celui présent dans la requête contient l'identifiant de notre précédente session. Puisque nous
+      n'avons pas fermé notre navigateur ni supprimé les cookies enregistrés, le navigateur considère que la session
+      est toujours ouverte côté serveur, et envoie donc par défaut le cookie qu'il avait enregistré lors de l'échange
+      précédent !
+
+    * la valeur de celui présent dans la réponse contient un nouvel identifiant de session. Le serveur ayant supprimé
+      la session de sa mémoire lors de la déconnexion du client (souvenez-vous du code de notre servlet de déconnexion),
+      il ne trouve aucune session qui correspond à l'identifiant envoyé par le navigateur dans le cookie de la requête.
+      Il crée donc une nouvelle session, et demande aussitôt au navigateur de remplacer le cookie existant par celui
+      contenant le nouveau numéro de session, toujours via l'instruction Set-Cookie de la réponse renvoyée !
+
+      o manualmente sin redireccion yendo a la pagina deconexion y luego manualmente reconectandose a connexion
+      ---------------------------------------------------------------------------------------------------------
+
+      Ce qui arrive ici c'est que le navigateur possède un cookie avec un identifiant de session, quand on arrive sur la
+      page deconnexion, la session est detruite, mais le navigateur possède encore la cookie, du coup quand on rafraichi et on
+      va sur la page connexion.jsp, celui dans sa request renvoie sa cookie avec JSESSIONID , la servlet voit que cet
+      identifiant ne correspond plus a aucune session enregistrée (puisque celle-ci a été detruite) et procède donc
+      a la creation d'une nouvelle session qui sera envoyée au navigateur afin que celui ci l'enregistre  (set-cookie ...)
+
+************************************************************************************************************************
+                                          L'accès à une page sans session
+************************************************************************************************************************
+
+Nous allons cette fois accéder à une page qui n'implique aucun appel à request.getSession(). Il nous faut donc créer
+une page JSP pour l'occasion, que nous allons nommer accesPublic.jsp et placer directement à la racine de notre
+application, sous le répertoire WebContent :
+
+                                           ---------------------------------
+                                            <%@ page pageEncoding="UTF-8" %>
+                                            <!DOCTYPE html>
+                                            <html>
+                                                <head>
+                                                    <meta charset="utf-8" />
+                                                    <title>Accès public</title>
+                                                </head>
+                                                <body>
+                                                    <p>Bienvenue sur la page d'accès public.</p>
+                                                </body>
+                                            </html>
+                                            ---------------------------------
+
+Redémarrez Tomcat, effacez les données de votre navigateur via un Ctrl + Maj + Suppr, et rendez-vous alors sur la page
+http://localhost:8080/pro/accesPublic.jsp. Observez la figure suivante.
+
+
+                              Response Headers (257 B)
+                              ************************
+
+                              Connection : keep-alive
+                              Content-Length : 236
+                              Content-Type : text/html;charset=UTF-8
+                              Date : Tue, 04 Feb 2020 13:59:33 GMT
+                              Keep-Alive : timeout=20
+                              Set-Cookie : JSESSIONID=4F004FF8C60750ACCB4…ession_war_exploded; HttpOnly
+                              -------------------------------------------------------------------------
+
+                              Request Headers (371 B)
+                              ***********************
+
+                              Accept : text/html,application/xhtml+xm…ml;q=0.9,image/webp,*/*;q=0.8
+                              Accept-Encoding : gzip, deflate
+                              Accept-Language	: en-US,en;q=0.5
+                              Connection : keep-alive
+                              Host : localhost:8080
+                              Upgrade-Insecure-Requests : 1
+                              User-Agent : Mozilla/5.0 (Windows NT 10.0; …) Gecko/20100101 Firefox/72.0
+
+**********************************************************************************************
+Pourquoi le serveur demande-t-il la mise en place d'un cookie de session dans le navigateur ?!
+**********************************************************************************************
+
+En effet, c'est un comportement troublant ! Je vous ai annoncé qu'une session n'existait que lorsqu'un appel à
+request.getSession() était effectué. Or, le contenu de notre page accesPublic.jsp ne fait pas intervenir de session,
+et aucune servlet ne lui est associée : d'où sort cette session ? Eh bien rassurez-vous, je ne vous ai pas menti :
+c'est bien vous qui contrôlez la création de la session. Seulement voilà, il existe un comportement qui vous est
+encore inconnu, celui d'une page JSP :
+
+               *********************************************************************************
+                 par défaut, une page JSP va toujours tenter de créer ou récupérer une session.
+               *********************************************************************************
+
+Nous pouvons d'ailleurs le vérifier en jetant un œil au code de la servlet auto-générée par Tomcat. Nous l'avions
+déjà fait lorsque nous avions découvert les JSP pour la première fois, et je vous avais alors fait remarquer que le
+répertoire contenant ces fichiers pouvait varier selon votre installation et votre système. Voici un extrait du code
+du fichier accesPublic_jsp.java généré :
+
+car jsp es une servlet generé par le serveur (tomcat)
+On revient au concept d'objets implicites
+
+                                   ----------------------------------------------
+                                   javax.servlet.http.HttpSession session = null;
+                                     ...
+
+                                   session = pageContext.getSession();
+                                   ----------------------------------------------
+En gros, dans la servlet (jsp) une session est créée par défaut, avec l'instruction <<session = pageContext.getSession();>>
+
+
+Voilà donc l'explication de l'existence d'une session lors de l'accès à notre page JSP : dans le code auto-généré,
+il existe un appel à la méthode getSession() !
+
+Comment éviter la création automatique d'une session depuis une page JSP ?
+
+La solution qui s'offre à nous est l'utilisation de la directive page. Voici la ligne à ajouter en début de page pour
+empêcher la création d'une session :
+                                         ---------------------------
+                                         <%@ page session="false" %>
+                                         ---------------------------
+
+Toutefois, comprenez bien : cette directive désactive la session sur toute la page JSP. Autrement dit, en procédant
+ainsi vous interdisez la manipulation de sessions depuis votre page JSP. Dans ce cas précis, tout va bien, notre page
+n'en fait pas intervenir. Mais dans une page qui accède à des objets présents en session, vous ne devez bien évidemment
+pas mettre en place cette directive !
+
+par exemple <% session.aaaaa %> dans une page qui a <%@ page session="false" %>  "session" ne s'afficherait pas
+on pourrait pas faire des manips
+------------------------------------------------------------------------------------------------------------------------
+Éditez donc votre page accesPublic.jsp et ajoutez-y cette directive en début de code. Redémarrez alors Tomcat,
+effacez les données de votre navigateur via un Ctrl + Maj + Suppr, et rendez-vous à nouveau sur la page
+http://localhost:8080/pro/accesPublic.jsp. Observez la figure suivante
+
+                               ------------------------
+
+                               Response Headers (162 B)
+                               ***********************
+
+                               Connection : keep-alive
+                               Content-Length : 238
+                               Content-Type : text/html;charset=UTF-8
+                               Date : Tue, 04 Feb 2020 15:12:46 GMT
+                               Keep-Alive : timeout=20
+
+                               Request Headers (371 B)
+                               ***********************
+
+                               Accept : text/html,application/xhtml+xm…ml;q=0.9,image/webp,*/*;q=0.8
+                               Accept-Encoding	: gzip, deflate
+                               Accept-Language	: en-US,en;q=0.5
+                               Connection : keep-alive
+                               Host : localhost:8080
+                               Upgrade-Insecure-Requests : 1
+                               User-Agent : Mozilla/5.0 (Windows NT 10.0; …) Gecko/20100101 Firefox/72.0
+                               ------------------------
+
+************************************************************************************************************************
+Vous pouvez cette fois remarquer qu'aucun cookie n'intervient dans l'échange HTTP ! Le serveur ne cherche pas à créer
+ni récupérer de session, et par conséquent il ne demande pas la mise en place d'un cookie dans le navigateur de
+l'utilisateur.
+
+Ce genre d'optimisation n'a absolument aucun impact sur une application de petite envergure, vous pouvez alors très
+bien vous en passer. Mais sur une application à très forte fréquentation ou simplement sur une page à très fort trafic,
+en désactivant l'accès à la session lorsqu'elle n'est pas utilisée, vous pouvez gagner en performances et en espace
+mémoire disponible : vous empêcherez ainsi la création d'objets inutilisés par le serveur, qui occuperont de la place
+jusqu'à ce qu'ils soient détruits après la période d'inactivité dépassée.
+
+************************************************************************************************************************
+                                     L'accès à une page sans cookie
+************************************************************************************************************************
+
+Dernier scénario et non des moindres, l'accès à une page faisant intervenir un appel à request.getSession() depuis un
+navigateur qui n'accepte pas les cookies ! Eh oui, tous les navigateurs ne gardent pas leurs portes ouvertes, et
+certains refusent la sauvegarde de données sous forme de cookies. Procédez comme suit pour bloquer les cookies depuis
+votre navigateur.
+
+Depuis Firefox :
+
+                1) Allez sur la page http://localhost:8080/pro/connexion.
+
+                2) Faites un clic droit dans la page et sélectionnez Informations sur la page.
+
+                3) Sélectionnez alors le panneau Permissions.
+
+                4) Sous Définir des cookies, décochez Permissions par défaut et cochez Bloquer, comme indiqué
+                   à la figure suivante.
+
+                5) Fermez la fenêtre Informations sur la page.
+
+Depuis Chrome :
+***************
+
+                1) Cliquez sur l'icône représentant une clé à molette
+
+                2) qui est située dans la barre d'outils du navigateur.
+
+                3) Sélectionnez Paramètres.
+
+                4) Cliquez sur Afficher les paramètres avancés.
+
+                5) Dans la section "Confidentialité", cliquez sur le bouton Paramètres de contenu.
+
+------------------------------------------------------------------------------------------------------------------------
+Dans la section "Cookies", modifiez les paramètres comme indiqué à la figure suivante.
+
+Redémarrez ensuite Tomcat, effacez les données de votre navigateur via un Ctrl + Maj + Suppr, et rendez-vous sur
+la page http://localhost:8080/pro/connexion. Vous observerez alors que la réponse du serveur contient une instruction
+Set-Cookie. Actualisez maintenant la page en appuyant sur F5, et vous constaterez cette fois que la requête envoyée par
+votre navigateur ne contient pas de cookie, et que la réponse du serveur contient à nouveau une instruction Set-Cookie
+présentant un identifiant de session différent ! C'est tout à fait logique :
+
+       * le navigateur n'accepte plus les cookies, il n'a donc pas enregistré le premier identifiant envoyé par le
+         serveur dans la première réponse. Par conséquent, il n'a pas envoyé d'identifiant dans la requête suivante ;
+
+       * le serveur ne trouvant aucune information de session dans la seconde requête envoyée par le navigateur du
+         client, il le considère comme un nouveau visiteur, crée une nouvelle session et lui demande d'en enregistrer
+         le nouvel identifiant dans un cookie.
+
+**********************************************************************************************************
+Bien, c'est logique. Mais dans ce cas, comment le serveur peut-il associer une session à un utilisateur ?
+**********************************************************************************************************
+
+Voilà en effet une excellente question : comment le serveur va-t-il être capable de retrouver des informations
+en session s'il n'est pas capable de reconnaître un visiteur d'une requête à l'autre ? Étant donné l'état actuel de
+notre code, la réponse est simple : il ne peut pas ! D'ailleurs, vous pouvez vous en rendre compte simplement.
+
+
+Rendez-vous sur la page de connexion, saisissez des données correctes et validez le formulaire. Observez la figure suivante.
+
+
+Ouvrez alors un nouvel onglet, et rendez-vous à nouveau sur la page de connexion. Observez la figure suivante.
+
+como si nada, es decir que debemos llenar de nuevo todos los campos porque el navegador nos tomo como un nuevo usuario
+la linea verde que muestra el mail no se muestra, si se mostraba cuando el navegador nos reconocia
+
+------------------------------------------------------------------------------------------------------------------------
+
+Lors de nos précédents tests, dans la partie sur les vérifications, le formulaire réaffichait l'adresse mail avec
+laquelle vous vous étiez connectés auparavant. Cette fois, aucune information n'est réaffichée et le formulaire de
+connexion apparaît à nouveau vierge. Vous constatez donc bien l'incapacité du serveur à vous reconnaître !
+
+Pas de panique, nous allons y remédier très simplement. Dans notre page connexion.jsp, nous allons modifier une ligne
+de code :
 --%>
 
 

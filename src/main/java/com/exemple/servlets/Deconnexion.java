@@ -25,7 +25,7 @@ public class Deconnexion extends HttpServlet {
            a condition de mettre le chemin complet cad le nomDuProjet/servlet     /session_war_exploded/connexion*/
 
         // response.sendRedirect("/session_war_exploded/connexion");
-        response.sendRedirect("URL_REDIRECTION");
+        response.sendRedirect(URL_REDIRECTION);
 
         /*2) CAS DE FORWARDING  REDIRECTION VER PAGES INTERNES A L'APPLICATION Affichage de la page de connexion
              côté serveur, le client ne sait pas qu'il est redirigé

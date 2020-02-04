@@ -35,9 +35,9 @@ public class Connexion extends HttpServlet {
         // du bean de la session.
 
         if (form.getErreurs().isEmpty()) {
-            if (session.isNew()) {
-                session.setAttribute(ATT_SESSION_USER, utilisateur);
-            }
+            //if (session.isNew()) {
+            session.setAttribute(ATT_SESSION_USER, utilisateur);
+            //}
         } else {
             session.setAttribute(ATT_SESSION_USER, null);
         }
