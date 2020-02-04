@@ -571,6 +571,41 @@ site préféré, comme je vous l'ai montré avant de faire cet aparté sur le fo
                                             Derrière les rideaux
 ************************************************************************************************************************
 
+***************************************
+La théorie : principe de fonctionnement
+***************************************
+
+C'est bien joli tout ça, mais nous n'avons toujours pas abordé la question fatidique :
+
+************************************************************************************************************************
+                                      Comment fonctionnent les sessions ?
+************************************************************************************************************************
+
+Jusqu'à présent, nous ne sommes pas inquiétés de ce qui se passe derrière les rideaux. Et pourtant croyez-moi,
+il y a de quoi faire !
+
+La chose la plus importante à retenir, c'est que c'est vous qui contrôlez l'existence d'une session dans votre
+application. Un objet HttpSession dédié à un utilisateur sera créé ou récupéré uniquement lorsque la page qu'il
+visite implique un appel à <<request.getSession()>>, en d'autres termes uniquement lorsque vous aurez placé un tel appel
+dans votre code. En ce qui concerne la gestion de l'objet, c'est le conteneur de servlets qui va s'en charger, en
+le créant et le stockant en mémoire. Au passage, le serveur dispose d'un moyen pour identifier chaque session qu'il
+crée : il leur attribue un identifiant unique, que nous pouvons d'ailleurs retrouver via la méthode session.getId().
+
+Ensuite, le conteneur va mettre en place un élément particulier dans la réponse HTTP qu'il va renvoyer au client :
+un Cookie. Nous reviendrons plus tard sur ce que sont exactement ces cookies, et comment les manipuler. Pour le moment,
+voyez simplement un cookie comme un simple marqueur, un petit fichier texte qui :
+
+      * contient des informations envoyées par le serveur ;
+
+      * est stocké par votre navigateur, directement sur votre poste ;
+
+      * a obligatoirement un nom et une valeur.
+
+En l'occurrence, le cookie mis en place lors de la gestion d'une session utilisateur par le serveur se nomme JSESSIONID,
+et contient l'identifiant de session unique en tant que valeur.
+
+Pour résumer, le serveur va placer directement chez le client son identifiant de session. Donc, chaque fois qu'il crée
+une session pour un nouveau client, le serveur va envoyer son identifiant au navigateur de celui-ci.
 --%>
 
 
