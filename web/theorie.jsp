@@ -604,6 +604,9 @@ voyez simplement un cookie comme un simple marqueur, un petit fichier texte qui 
 En l'occurrence, le cookie mis en place lors de la gestion d'une session utilisateur par le serveur se nomme JSESSIONID,
 et contient l'identifiant de session unique en tant que valeur.
 
+
+
+
 Pour résumer, le serveur va placer directement chez le client son identifiant de session. Donc, chaque fois qu'il crée
 une session pour un nouveau client, le serveur va envoyer son identifiant au navigateur de celui-ci.
 
