@@ -606,6 +606,12 @@ et contient l'identifiant de session unique en tant que valeur.
 
 Pour résumer, le serveur va placer directement chez le client son identifiant de session. Donc, chaque fois qu'il crée
 une session pour un nouveau client, le serveur va envoyer son identifiant au navigateur de celui-ci.
+
+
+
+
+
+
 --%>
 
 
