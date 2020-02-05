@@ -1036,7 +1036,8 @@ Rendez-vous sur la page de connexion, saisissez des données correctes et valide
 Ouvrez alors un nouvel onglet, et rendez-vous à nouveau sur la page de connexion. Observez la figure suivante.
 
 como si nada, es decir que debemos llenar de nuevo todos los campos porque el navegador nos tomo como un nuevo usuario
-la linea verde que muestra el mail no se muestra, si se mostraba cuando el navegador nos reconocia
+la linea verde que muestra el mail no se muestra, si se mostraba cuando el navegador nos reconocia.
+Es como si comenzaramos de 0
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -1046,6 +1047,171 @@ connexion apparaît à nouveau vierge. Vous constatez donc bien l'incapacité du
 
 Pas de panique, nous allons y remédier très simplement. Dans notre page connexion.jsp, nous allons modifier une ligne
 de code :
+
+                           <!-- Dans la page connexion.jsp, remplacez la ligne suivante : -->
+                           <form method="post" action="connexion">
+
+                           <!-- Par cette ligne : -->
+                           <form method="post" action="<c:url value="/connexion" />">
+
+Si vous reconnaissez ici la balise <c:url> de la JSTL Core, vous devez également vous souvenir qu'elle est équipée
+pour la gestion automatique des sessions. Je vous avais en effet déjà expliqué que cette balise avait l'effet suivant :
+
+                                ------------------------------------------------------------------
+                                L'url ainsi générée
+                                <c:url value="test.jsp" />
+
+                                Sera rendue ainsi dans la page web finale, si le cookie est présent
+                                test.jsp
+
+                                Et sera rendue sous cette forme si le cookie est absent
+                                test.jsp;jsessionid=BB569C7F07C5E887A4D
+                                ------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------
+Et ça, c'est exactement ce dont nous avons besoin ! Puisque notre navigateur n'accepte plus les cookies, nous n'avons
+pas d'autre choix que de faire passer l'identifiant de session directement au sein de l'URL.
+------------------------------------------------------------------------------------------------------------------------
+
+Une fois la modification sur la page connexion.jsp effectuée, suivez le scénario de tests suivant.
+
+Rendez-vous à nouveau sur la page http://localhost:8080/pro/connexion, et regardez à la fois la réponse envoyée par
+le serveur et le code source de la page de connexion. Vous constaterez alors que, puisque le serveur ne détecte aucun
+cookie présent chez le client, il va d'un côté tenter de passer l'identifiant de session via l'instruction Set-Cookie,
+et de l'autre générer une URL précisant l'identifiant de session. Voyez plutôt la figure suivante.
+
+ca c'est ce que l'on a du côté serveur quand on fait un inspect
+---------------------------------------------------------------
+
+                          Response Headers (258 B)
+                          ************************
+
+                          Connection : keep-alive
+                          Content-Length : 1093
+                          Content-Type : text/html;charset=UTF-8
+                          Date : Wed, 05 Feb 2020 09:25:20 GMT
+                          Keep-Alive : timeout=20
+                          Set-Cookie : JSESSIONID=7FE824EABC50C93FA31…ession_war_exploded; HttpOnly
+
+                          Request Headers (365 B)
+                          ***********************
+
+                          Accept : text/html,application/xhtml+xm…ml;q=0.9,image/webp,*/*;q=0.8
+                          Accept-Encoding : gzip, deflate
+                          Accept-Language : en-US,en;q=0.5
+                          Connection : keep-alive
+                          Host : localhost:8080
+                          Upgrade-Insecure-Requests : 1
+                          User-Agent : Mozilla/5.0 (Windows NT 10.0; …) Gecko/20100101 Firefox/72.0
+
+
+et ca c'est ce que l'on a lorsque l'on regarde le code source de notre page connexion
+-------------------------------------------------------------------------------------
+
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8"/>
+                <title>Connexion</title>
+                <link type="text/css" rel="stylesheet" href="form.css"/>
+            </head>
+            <body>
+
+            <form method="post" action="/session_war_exploded/connexion;jsessionid=7FE824EABC50C93FA31E6FDF41805F2F">
+                <fieldset>              -----------------------------------------------------------------------------
+                    <legend>Connexion</legend>
+                    <p>Vous pouvez vous connecter via ce formulaire.</p>
+
+                    <label for="email"> Adresse email <span class="requis">*</span></label>
+                    <input type="email" id="email" name="email" value="" size="20" maxlength="60"/>
+                    <span class="erreur"></span>
+                    <br/>
+
+                    <label for="motdepasse">Mot de passe <span class="requis">*</span></label>
+                    <input type="password" id="motdepasse" name="motdepasse" value="" size="20" maxlength="20"/>
+                    <span class="erreur"></span>
+                    <br/>
+
+                    <input type="submit" value="Connexion" class="sansLabel"/>
+                    <br/>
+
+                    <p class="succes"></p>
+
+                </fieldset>
+            </form>
+            </body>
+            </html>
+
+En fait la Set-Cookie : JSESSIONID=7FE824EABC50C93FA31…ession_war_exploded; HttpOnly essaie de mettre la cookie
+dans le navigateur, d'un côté ... et de l'autre générer un URL précisant l'identifiant de SESSION.
+
+------------------------------------------------------------------------------------------------------------------------
+Connectez-vous alors avec des données valides. Vous retrouverez alors, dans la barre d'adresses de votre navigateur,
+l'URL modifiée par la balise <c:url>, contenant l'identifiant de session passé par le serveur (voir la figure suivante).
+
+        http://localhost:8080/session_war_exploded/connexion;jsessionid=7FE824EABC50C93FA31E6FDF41805F2F
+
+comme je ne peux pas mettre la cookie dans le navigateur directement avec set cookie, le serveur n'a pas d'autre choix
+que de passer la JSESSION=     directement au sein de l'url
+
+je valide le mail et mot de passe je clique sur valider, la request part au serveur sans JSESSIONID, le serveur voit qu'il
+n'y a pas de JSESSIONID et crée une session avec un JSESSIONID associé. Avec l'instruction set-cookie il essaie de mettre
+la cookie dans le navigateur, si le navigateur accepte cookies alors l'affichage sera
+
+                             http://localhost:8080/session_war_exploded/connexion
+
+Mais comme on a configuré notre navigateur pour qu'il n'accepte pas de cookies, alors le serveur, va passer le JSESSION
+ID à traver l'url, et on aura donc un affichage:
+
+        http://localhost:8080/session_war_exploded/connexion;jsessionid=7FE824EABC50C93FA31E6FDF41805F2F
+
+Ouvrez un nouvel onglet, et copiez/collez l'URL dans la barre d'adresses pour y ouvrir à nouveau la page de connexion
+en conservant le JSESSIONID. Vous constaterez cette fois que le serveur vous a bien reconnus en se basant sur
+l'identifiant contenu dans l'URL que vous lui transmettez, et qu'il est capable de retrouver l'adresse mail avec
+laquelle vous vous êtes connectés (voir la figure suivante).
+
+Accédez maintenant à la page http://localhost:8080/pro/connexion sans préciser le JSESSIONID dans l'URL, et constatez
+que le serveur est à nouveau incapable de vous reconnaître et vous affiche un formulaire vierge !
+
+Nous en avons enfin terminé avec notre batterie de tests, et avec tout ce que vous avez découvert, les sessions
+n'ont maintenant presque plus aucun secret pour vous !
+
+************************************************************************************************************************
+
+En résumé
+*********
+
+     * La session complète un manque du protocole HTTP, en permettant au serveur de reconnaître et tracer un visiteur ;
+
+     * une session est un espace mémoire alloué sur le serveur, et dont le contenu n'est accessible que depuis le serveur ;
+
+     * le serveur représente une session par l'objet HttpSession, initialisé par un simple appel à request.getSession() ;
+
+     * afin de savoir quel client est associé à telle session créée, le serveur transmet au client l'identifiant de la
+       session qui lui est dédiée, le JSESSIONID, dans les en-têtes de la réponse HTTP sous forme d'un cookie ;
+
+     * si le navigateur accepte les cookies, il stocke alors ce cookie contenant l'identifiant de session, et le
+       retransmet au serveur dans les en-têtes de chaque requête HTTP qui va suivre ;
+
+     * si le serveur lui renvoie un nouveau numéro, autrement dit si le serveur a fermé l'ancienne session et en a ouvert
+       une nouvelle, alors le navigateur remplace l'ancien numéro stocké par ce nouveau numéro, en écrasant l'ancien
+       cookie par le nouveau ;
+
+     * si le navigateur n'accepte pas les cookies, alors le serveur dispose d'un autre moyen pour identifier le client :
+       il est capable de chercher l'identifiant directement dans l'URL de la requête, et pas uniquement dans ses en-têtes ;
+
+     * il suffit au développeur de manipuler correctement les URL qu'il met en place dans son code - avec <c:url> par
+       exemple - pour permettre une gestion continue des sessions, indépendante de l'acceptation ou non des cookies
+       côté client ;
+
+     * une session expire et est détruite après le départ d'un visiteur (fermeture de son navigateur), après son
+       inactivité prolongée ou après sa déconnexion manuelle ;
+
+     * pour effectuer une déconnexion manuellement, côté serveur il suffit d'appeler la méthode session.invalidate() ;
+
+     * la désactivation de la gestion des sessions sur une page en particulier est possible via la directive JSP
+       <%@ page session="false" %>.
+
 --%>
 
 

@@ -17,12 +17,18 @@
 
 </head>
 <body>
-<form method="post" action="connexion">
+<%-- Dans la page connexion.jsp, remplacez la ligne suivante : <form method="post" action="connexion">
+     Par cette ligne : <form method="post" action="<c:url value="/connexion" />">
+     esto es porque hemos hecho que el navegador no acepte cookies y du coup el navegador no nos reconoce --%>
+
+
+<%-- <form method="post" action="connexion"> --%>
+<form method="post" action="<c:url value="/connexion" />">
     <fieldset>
         <legend>Connexion</legend>
         <p>Vous pouvez vous connecter via ce formulaire.</p>
 
-        <label for="email">Adresse email <span class="requis">*</span></label>
+        <label for="email"> Adresse email <span class="requis">*</span></label>
         <input type="email" id="email" name="email" value="<c:out value="${requestScope.utilisateur.email}"/>" size="20"
                maxlength="60"/>
         <span class="erreur">${requestScope.form.erreurs['email']}</span>
@@ -45,7 +51,6 @@
             <%-- Si l'utilisateur existe en session (s'il est paas null) , alors on affiche son adresse email. --%>
             <p class="succes">Vous êtes connecté(e) avec l'adresse : ${sessionScope.sessionUtilisateur.email}</p>
         </c:if>
-
 
 
     </fieldset>
